@@ -1,0 +1,5 @@
+core/work/
+core/package/st/
+core/package/mt/
+*.tgz
+node_modules/

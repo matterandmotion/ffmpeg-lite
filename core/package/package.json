@@ -1,0 +1,33 @@
+{
+  "name": "@matterandmotion/ffmpeg-core",
+  "version": "0.1.0",
+  "description": "A slim FFmpeg and x264 WebAssembly core for making H.264 web video in the browser, built for Video Optimizer.",
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matterandmotion/video-optimizer.git",
+    "directory": "core"
+  },
+  "homepage": "https://github.com/matterandmotion/video-optimizer/tree/main/core",
+  "keywords": [
+    "ffmpeg",
+    "x264",
+    "h264",
+    "webassembly",
+    "video"
+  ],
+  "files": [
+    "st/",
+    "mt/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./st/*": "./st/*",
+    "./mt/*": "./mt/*",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
