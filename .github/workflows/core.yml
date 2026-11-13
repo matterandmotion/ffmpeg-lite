@@ -1,0 +1,92 @@
+name: Core
+
+# Builds and checks the slim FFmpeg core in core/. Runs on pull requests that change it.
+#
+# To release a version: bump core/package/package.json, merge it to main, then run this workflow by
+# hand on main with "publish" ticked. It publishes @matterandmotion/ffmpeg-core to npm (trusted
+# publishing, with provenance) and creates the core-v<version> GitHub release with the complete source.
+# If that version is already on npm (e.g. the first one, published by hand), only the release is made.
+
+on:
+  pull_request:
+    paths:
+      - 'core/**'
+      - '.github/workflows/core.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to npm and create the GitHub release (main only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install ffmpeg (makes the test clips)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Build
+        run: core/build.sh all
+      - name: Check
+        run: node core/test/smoke.mjs
+      - name: Package
+        id: package
+        run: |
+          version=$(node -p "require('./core/package/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          (cd core/package && npm pack --pack-destination ../work)
+          core/source.sh "$version"
+          (cd core/package && sha256sum st/* mt/*) | tee core/work/SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-core
+          path: |
+            core/work/*.tgz
+            core/work/*-source.tar.gz
+            core/work/SHA256SUMS
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # the GitHub release
+      id-token: write # npm trusted publishing and provenance
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ffmpeg-core
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Use npm 11 (trusted publishing needs 11.5.1 or later)
+        run: npm install -g npm@11 && npm --version
+      - name: Publish to npm
+        run: |
+          if npm view "@matterandmotion/ffmpeg-core@$VERSION" version > /dev/null 2>&1; then
+            echo "$VERSION is already on npm; not publishing it again."
+          else
+            npm publish "./matterandmotion-ffmpeg-core-$VERSION.tgz" --access public
+          fi
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "core-v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "FFmpeg core $VERSION" \
+            --notes "The slim FFmpeg core published as @matterandmotion/ffmpeg-core $VERSION: FFmpeg 5.1.4, x264, zimg 3.0.5 and zlib 1.2.11, built from ffmpeg.wasm 0.12.10 with core/slim-core.patch. GPL-2.0-or-later. The complete source is in ffmpeg-core-$VERSION-source.tar.gz. SHA256SUMS lists the hashes of the built files." \
+            ./*.tgz ./*-source.tar.gz ./SHA256SUMS
