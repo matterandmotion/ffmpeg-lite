@@ -1,11 +1,11 @@
-// Checks a built core (core/package/st and mt) in Node:
+// Checks a build of ffmpeg-lite (package/st and package/mt) in Node:
 // - every file is under Cloudflare Pages' 25 MiB limit;
 // - every component the app needs is present;
 // - an SDR encode with sound, the HDR tone-mapping chain, `-f null` and a raw frame grab all work,
 //   checked with the native ffprobe.
 // Needs native ffmpeg and ffprobe on PATH to make the test clips.
 //
-// Usage: node core/test/smoke.mjs
+// Usage: node test/smoke.mjs
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -92,7 +92,7 @@ const probe = (file) =>
   )
 
 // Test clips, made natively: 3 s of 1280x720 SDR with sound, and 2 s of 10-bit HEVC tagged HLG.
-const dir = mkdtempSync(join(tmpdir(), 'ffmpeg-core-smoke-'))
+const dir = mkdtempSync(join(tmpdir(), 'ffmpeg-lite-smoke-'))
 const native = (...args) =>
   execFileSync('ffmpeg', ['-nostdin', '-hide_banner', '-loglevel', 'error', '-y', ...args])
 native(

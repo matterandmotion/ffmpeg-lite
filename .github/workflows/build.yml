@@ -1,17 +1,17 @@
-name: Core
+name: Build
 
-# Builds and checks the slim FFmpeg core in core/. Runs on pull requests that change it.
+# Builds and checks ffmpeg-lite on pushes to main and staging, and on pull requests.
 #
-# To release a version: bump core/package/package.json, merge it to main, then run this workflow by
-# hand on main with "publish" ticked. It publishes @matterandmotion/ffmpeg-core to npm (trusted
-# publishing, with provenance) and creates the core-v<version> GitHub release with the complete source.
-# If that version is already on npm (e.g. the first one, published by hand), only the release is made.
+# To release a version: change the version in package/package.json (and CHANGELOG.md) in a pull
+# request, release it to main, then run this workflow by hand on main with "publish" ticked. It
+# publishes @matterandmotion/ffmpeg-lite to npm (trusted publishing, with provenance) and creates
+# the v<version> GitHub release with the complete source. If that version is already on npm (e.g.
+# one published by hand), only the release is made.
 
 on:
+  push:
+    branches: [main, staging]
   pull_request:
-    paths:
-      - 'core/**'
-      - '.github/workflows/core.yml'
   workflow_dispatch:
     inputs:
       publish:
@@ -36,24 +36,25 @@ jobs:
       - name: Install ffmpeg (makes the test clips)
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Build
-        run: core/build.sh all
+        run: ./build.sh all
       - name: Check
-        run: node core/test/smoke.mjs
+        run: node test/smoke.mjs
       - name: Package
         id: package
         run: |
-          version=$(node -p "require('./core/package/package.json').version")
+          version=$(node -p "require('./package/package.json').version")
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          (cd core/package && npm pack --pack-destination ../work)
-          core/source.sh "$version"
-          (cd core/package && sha256sum st/* mt/*) | tee core/work/SHA256SUMS
+          cp README.md LICENSE package/
+          (cd package && npm pack --pack-destination ../work)
+          ./source.sh "$version"
+          (cd package && sha256sum st/* mt/*) | tee work/SHA256SUMS
       - uses: actions/upload-artifact@v7
         with:
-          name: ffmpeg-core
+          name: ffmpeg-lite
           path: |
-            core/work/*.tgz
-            core/work/*-source.tar.gz
-            core/work/SHA256SUMS
+            work/*.tgz
+            work/*-source.tar.gz
+            work/SHA256SUMS
           if-no-files-found: error
 
   publish:
@@ -68,7 +69,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: ffmpeg-core
+          name: ffmpeg-lite
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -77,16 +78,16 @@ jobs:
         run: npm install -g npm@11 && npm --version
       - name: Publish to npm
         run: |
-          if npm view "@matterandmotion/ffmpeg-core@$VERSION" version > /dev/null 2>&1; then
+          if npm view "@matterandmotion/ffmpeg-lite@$VERSION" version > /dev/null 2>&1; then
             echo "$VERSION is already on npm; not publishing it again."
           else
-            npm publish "./matterandmotion-ffmpeg-core-$VERSION.tgz" --access public
+            npm publish "./matterandmotion-ffmpeg-lite-$VERSION.tgz" --access public
           fi
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "core-v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "FFmpeg core $VERSION" \
-            --notes "The slim FFmpeg core published as @matterandmotion/ffmpeg-core $VERSION: FFmpeg 5.1.4, x264, zimg 3.0.5 and zlib 1.2.11, built from ffmpeg.wasm 0.12.10 with core/slim-core.patch. GPL-2.0-or-later. The complete source is in ffmpeg-core-$VERSION-source.tar.gz. SHA256SUMS lists the hashes of the built files." \
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "ffmpeg-lite $VERSION" \
+            --notes "@matterandmotion/ffmpeg-lite $VERSION. What's in it: see CHANGELOG.md and the README at this tag. GPL-2.0-or-later; the complete source is in ffmpeg-lite-$VERSION-source.tar.gz. SHA256SUMS lists the hashes of the built files, which are reproducible." \
             ./*.tgz ./*-source.tar.gz ./SHA256SUMS
