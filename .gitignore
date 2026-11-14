@@ -1,5 +1,8 @@
-core/work/
-core/package/st/
-core/package/mt/
+work/
+package/st/
+package/mt/
+# Copied from the top level when packing.
+package/README.md
+package/LICENSE
 *.tgz
 node_modules/

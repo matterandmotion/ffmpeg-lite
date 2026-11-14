@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Builds the slim FFmpeg core into core/package/st (single-threaded) and core/package/mt (multi-threaded).
+# Builds ffmpeg-lite into package/st (single-threaded) and package/mt (multi-threaded).
 #
 # It starts from ffmpegwasm/ffmpeg.wasm at the commit that released @ffmpeg/core 0.12.10, applies
-# slim-core.patch and runs that repo's own Docker build. Needs git, make and Docker with buildx.
+# ffmpeg-lite.patch and runs that repo's own Docker build. Needs git, make and Docker with buildx.
 #
-# Usage: core/build.sh [st|mt|all]
+# Usage: ./build.sh [st|mt|all]
 # Extra `docker buildx build` arguments can be passed in EXTRA_ARGS (e.g. a build cache).
 set -euo pipefail
 
@@ -21,7 +21,7 @@ if [ "$(git -C "$WORK" rev-parse -q --verify HEAD || true)" != "$COMMIT" ]; then
   git -C "$WORK" fetch -q --depth 1 origin "$COMMIT"
 fi
 git -C "$WORK" checkout -q --force "$COMMIT"
-git -C "$WORK" apply "$HERE/slim-core.patch"
+git -C "$WORK" apply "$HERE/ffmpeg-lite.patch"
 
 build() { # target package-dir output-dir
   make -C "$WORK" "$1" EXTRA_ARGS="--progress=plain ${EXTRA_ARGS:-}"
